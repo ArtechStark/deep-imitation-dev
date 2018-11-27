@@ -14,11 +14,13 @@ from collections import OrderedDict
 from torch.autograd import Variable
 from pathlib import Path
 
-
 pix2pixhd_dir = Path('../src/pix2pixHD/')
 
 import sys
 sys.path.append(str(pix2pixhd_dir))
+
+# In[3]:
+
 
 from options.train_options import TrainOptions
 from data.data_loader import CreateDataLoader
@@ -39,17 +41,24 @@ iter_path = os.path.join(opt.checkpoints_dir, opt.name, 'iter.txt')
 # In[5]:
 
 
-#opt.lr = 7e-4
-opt.loadSize = 800
-#opt.niter=10
-#opt.niter_decay=10
+# opt.lr = 1e-6
+opt.loadSize = 720
+opt.batchSize = 6
+opt.gpu_ids = [0,1,2,3,4,5]
 opt.label_nc = 0
 opt.temp_data = True
 opt.input_nc = 6
-# opt.output_nc = 3
+# opt.G_steps = 10
+opt.no_flip = True
 opt.model = 'pix2pixHD_tempSmooth'
-# opt.debug = True
-#opt.load_pretrain = '../checkpoints/target/'
+#opt.debug = True
+opt.name = 'yaosy_slowMov'
+opt.dataroot='../data/target/yaosy_slowMov/'
+opt.niter = 5
+opt.niter_decay = 5
+# opt.lambda_feat = 5.0
+# opt.continue_train = True
+# opt.load_pretrain = '../checkpoints/maskGirl/'
 
 
 # In[6]:
@@ -67,8 +76,8 @@ else:
 if opt.debug:
     opt.display_freq = 1
     opt.print_freq = 1
-    opt.niter = 1
-    opt.niter_decay = 0
+    opt.niter = 40
+    opt.niter_decay = 40
     opt.max_dataset_size = 10
 print(opt)
 
@@ -100,6 +109,7 @@ visualizer = Visualizer(opt)
 
 for epoch in range(start_epoch, opt.niter + opt.niter_decay + 1):
     epoch_start_time = time.time()
+
     if epoch != start_epoch:
         epoch_iter = epoch_iter % dataset_size
     for i, data in enumerate(dataset, start=epoch_iter):
@@ -120,7 +130,8 @@ for epoch in range(start_epoch, opt.niter + opt.niter_decay + 1):
 
         # calculate final loss scalar
         loss_D = (loss_dict['D_fake'] + loss_dict['D_real']) * 0.5
-        loss_G = loss_dict['G_GAN'] + loss_dict.get('G_GAN_Feat',0) + loss_dict.get('G_VGG',0)
+        loss_G = loss_dict['G_GAN'] + loss_dict.get('G_GAN_Feat',0) +                  loss_dict.get('G_VGG',0)
+        loss_Dt = (loss_dict['D_fake_temp'] + loss_dict['D_real_temp']) * 0.5
 
         ############### Backward Pass ####################
         # update generator weights
@@ -133,6 +144,10 @@ for epoch in range(start_epoch, opt.niter + opt.niter_decay + 1):
         loss_D.backward()
         model.module.optimizer_D.step()
 
+        # update temp discriminator weights
+        model.module.optimizer_Dt.zero_grad()
+        loss_Dt.backward()
+        model.module.optimizer_Dt.step()
         #call(["nvidia-smi", "--format=csv", "--query-gpu=memory.used,memory.free"])
 
         ############## Display results and errors ##########

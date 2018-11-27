@@ -128,6 +128,9 @@ def poseEstimate(img, is_square=True, resize=(336, 336)):
         img = img[oh:oh+shape_dst, ow:ow+shape_dst]
     # img = cv2.resize(img, resize)
     keypoints, output_image = openpose.forward(img, True)
+    if len(keypoints) == 0:
+        print(np.zeros_like(img[:2]).shape)
+        return np.zeros(img.shape[:2], dtype=np.uint8), np.zeros_like(img, dtype=np.uint8)
     keypoints = keypoints[0].reshape(-1, 3)
     label = create_label(img.shape[:2], keypoints)
     # last_create_label = label
@@ -139,4 +142,3 @@ if __name__ == '__main__':
     label = poseEstimate(test_img)
     cv2.imshow('test', label)
     cv2.waitKey(0)
-
