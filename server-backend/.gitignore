@@ -120,3 +120,6 @@ checkpoints/
 results/
 
 notebook/None0000000.png
+*.png
+*.avi
+*.pth
